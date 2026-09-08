@@ -95,7 +95,13 @@ jobs:
               echo "\"Am I Shouting?\" near the bottom and choose **Open Anyway**. This is only needed once."
               echo
             fi
-            echo "The app asks for microphone access on first launch. Audio is never recorded or sent anywhere."
+            echo "### Then calibrate it"
+            echo
+            echo "Allow microphone access, click the bar in the menu bar and press **Measure my normal voice**,"
+            echo "then speak normally for five seconds. The default thresholds know nothing about your microphone"
+            echo "or your voice; until you do this, the colours will be wrong for you. It takes five seconds."
+            echo
+            echo "Audio is never recorded or sent anywhere."
           } > "$RUNNER_TEMP/notes.md"
 
       - name: Publish
