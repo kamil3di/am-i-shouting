@@ -14,8 +14,8 @@ enum Probe {
         var firstSampleTime: CFTimeInterval?
 
         setbuf(stdout, nil)
-        print("cihaz dinleniyor, \(Int(seconds)) sn…")
-        print("     t   giriş    taban     ses    fark  durum")
+        print("listening for \(Int(seconds))s…")
+        print("     t   input    floor   voice  excess  state")
 
         monitor.onSample = { sample in
             let result = detector.process(sample)
@@ -34,8 +34,9 @@ enum Probe {
                 result.state.probeName
             ))
         }
-        monitor.onError = { message in
-            FileHandle.standardError.write(Data(("hata: " + message + "\n").utf8))
+        monitor.onError = { error in
+            let message = Strings(.english).message(for: error)
+            FileHandle.standardError.write(Data(("error: " + message + "\n").utf8))
         }
 
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
@@ -45,14 +46,14 @@ enum Probe {
             let semaphore = DispatchSemaphore(value: 0)
             AVCaptureDevice.requestAccess(for: .audio) { granted in
                 if !granted {
-                    FileHandle.standardError.write(Data("hata: mikrofon izni verilmedi\n".utf8))
+                    FileHandle.standardError.write(Data("error: microphone access refused\n".utf8))
                 }
                 semaphore.signal()
             }
             semaphore.wait()
             monitor.start()
         default:
-            FileHandle.standardError.write(Data("hata: mikrofon erişimi reddedilmiş\n".utf8))
+            FileHandle.standardError.write(Data("error: microphone access has been denied\n".utf8))
             exit(2)
         }
 
@@ -60,10 +61,10 @@ enum Probe {
         monitor.stop()
 
         if frames == 0 {
-            print("hiç ses arabelleği gelmedi — giriş cihazı veya izin sorunu")
+            print("no audio arrived — check the input device or the permission")
             exit(1)
         }
-        print("\(frames) arabellek işlendi.")
+        print("\(frames) slices processed.")
         exit(0)
     }
 }
@@ -71,10 +72,10 @@ enum Probe {
 private extension LoudnessState {
     var probeName: String {
         switch self {
-        case .quiet: return "sessiz"
+        case .quiet: return "quiet"
         case .normal: return "normal"
-        case .loud: return "yüksek"
-        case .shouting: return "BAĞIRIYOR"
+        case .loud: return "loud"
+        case .shouting: return "SHOUTING"
         }
     }
 }

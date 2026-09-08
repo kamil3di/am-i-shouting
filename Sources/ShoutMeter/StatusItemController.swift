@@ -21,7 +21,7 @@ final class StatusItemController {
             button.imagePosition = .imageOnly
             button.target = self
             button.action = #selector(togglePopover)
-            button.setAccessibilityLabel("ShoutMeter ses seviyesi")
+            button.setAccessibilityLabel(model.strings.accessibilityLabel)
         }
 
         popover.behavior = .transient
@@ -33,6 +33,14 @@ final class StatusItemController {
             .combineLatest(model.$state)
             .sink { [weak self] reading, state in
                 self?.render(reading: reading, state: state)
+            }
+            .store(in: &cancellables)
+
+        model.$language
+            .sink { [weak self] language in
+                guard let self else { return }
+                self.statusItem.button?.setAccessibilityLabel(Strings(language).accessibilityLabel)
+                self.lastColor = .clear      // force the next render to redo the tooltip
             }
             .store(in: &cancellables)
 
@@ -63,9 +71,10 @@ final class StatusItemController {
             thresholdMark: reading.thresholdMark,
             color: color
         )
+        let strings = model.strings
         statusItem.button?.toolTip = live
-            ? "\(state.title) — ortamın \(Int(reading.excessDb.rounded())) dB üstü"
-            : (model.isRunning ? "Mikrofondan sinyal yok" : "ShoutMeter duraklatıldı")
+            ? strings.tooltip(state: state, excessDb: Int(reading.excessDb.rounded()))
+            : (model.isRunning ? strings.tooltipNoSignal : strings.tooltipPaused)
     }
 
     @objc private func togglePopover() {

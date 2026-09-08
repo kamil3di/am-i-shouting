@@ -4,6 +4,8 @@ import SwiftUI
 struct DetailView: View {
     @ObservedObject var model: MeterModel
 
+    private var strings: Strings { model.strings }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
@@ -16,10 +18,11 @@ struct DetailView: View {
                 calibration
                 sensitivitySlider
             }
-            if let error = model.errorMessage {
-                Text(error)
+            if let error = model.error {
+                Text(strings.message(for: error))
                     .font(.caption)
                     .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Divider()
             footer
@@ -33,15 +36,15 @@ struct DetailView: View {
     }
 
     private var headline: String {
-        guard model.isRunning else { return "Duraklatıldı" }
-        return model.reading.hasSignal ? model.state.title : "Sinyal yok"
+        guard model.isRunning else { return strings.paused }
+        return model.reading.hasSignal ? strings.title(for: model.state) : strings.noSignal
     }
 
     private var subhead: String {
-        guard model.isRunning else { return "Mikrofon dinlenmiyor." }
+        guard model.isRunning else { return strings.notListening }
         return model.reading.hasSignal
-            ? model.state.detail
-            : "Giriş tamamen sessiz. Mikrofon susturulmuş ya da henüz hazır değil."
+            ? strings.detail(for: model.state)
+            : strings.noSignalDetail
     }
 
     private var header: some View {
@@ -63,13 +66,13 @@ struct DetailView: View {
 
     private var permissionDenied: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Mikrofon erişimi kapalı.")
+            Text(strings.micDenied)
                 .font(.subheadline.weight(.medium))
-            Text("Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon bölümünden ShoutMeter'a izin ver, sonra uygulamayı yeniden başlat.")
+            Text(strings.micDeniedDetail)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("Gizlilik ayarlarını aç") {
+            Button(strings.openPrivacySettings) {
                 let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!
                 NSWorkspace.shared.open(url)
             }
@@ -78,10 +81,10 @@ struct DetailView: View {
 
     private var numbers: some View {
         VStack(spacing: 4) {
-            row("Ortam gürültüsü", db(model.reading.floorDb))
-            row("Anlık sesin", db(model.reading.voiceDb))
-            row("Ortamın üstünde", relative(model.reading.excessDb))
-            row("Bağırma eşiği", relative(model.reading.shoutThresholdDb))
+            row(strings.ambientNoise, db(model.reading.floorDb))
+            row(strings.yourLevel, db(model.reading.voiceDb))
+            row(strings.aboveAmbient, relative(model.reading.excessDb))
+            row(strings.shoutThreshold, relative(model.reading.shoutThresholdDb))
         }
     }
 
@@ -99,42 +102,35 @@ struct DetailView: View {
     private var calibration: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Kalibrasyon")
+                Text(strings.calibration)
                     .font(.caption.weight(.medium))
                 Spacer()
-                Text("normal: +\(Int(model.normalExcessDb.rounded())) dB")
+                Text(strings.normalReference(Int(model.normalExcessDb.rounded())))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 8) {
                 Button(model.isCalibrating
-                       ? "Konuş… \(model.calibrationRemaining)"
-                       : "Normal sesimi ölç") {
+                       ? strings.speakNow(model.calibrationRemaining)
+                       : strings.measureMyVoice) {
                     model.startCalibration()
                 }
                 .disabled(!model.isRunning || model.isCalibrating)
 
-                Button("Sıfırla") { model.resetCalibration() }
+                Button(strings.reset) { model.resetCalibration() }
                     .disabled(model.isCalibrating)
             }
-            if let result = model.calibrationResult {
-                Text(result)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text("5 saniye normal ses tonunda konuş; eşikler buna göre ayarlanır.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Text(model.calibrationResult.map(strings.calibrationOutcome) ?? strings.calibrationHint)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private var sensitivitySlider: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text("Hassasiyet")
+                Text(strings.sensitivity)
                     .font(.caption.weight(.medium))
                 Spacer()
                 Text(model.sensitivity == 0
@@ -146,19 +142,35 @@ struct DetailView: View {
             Slider(value: $model.sensitivity, in: -8...8, step: 1) {
                 EmptyView()
             } minimumValueLabel: {
-                Text("toleranslı").font(.caption2).foregroundStyle(.secondary)
+                Text(strings.tolerant).font(.caption2).foregroundStyle(.secondary)
             } maximumValueLabel: {
-                Text("hassas").font(.caption2).foregroundStyle(.secondary)
+                Text(strings.sensitive).font(.caption2).foregroundStyle(.secondary)
             }
         }
     }
 
     private var footer: some View {
-        HStack {
-            Button(model.isRunning ? "Duraklat" : "Devam et") { model.toggle() }
-                .disabled(model.permission != .granted)
-            Spacer()
-            Button("Çık") { NSApp.terminate(nil) }
+        VStack(spacing: 10) {
+            HStack {
+                Text(strings.languageLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Picker(strings.languageLabel, selection: $model.language) {
+                    ForEach(Language.allCases) { language in
+                        Text(language.endonym).tag(language)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .fixedSize()
+            }
+            HStack {
+                Button(model.isRunning ? strings.pause : strings.resume) { model.toggle() }
+                    .disabled(model.permission != .granted)
+                Spacer()
+                Button(strings.quit) { NSApp.terminate(nil) }
+            }
         }
     }
 

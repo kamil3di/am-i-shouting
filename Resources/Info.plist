@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>tr</string>
+    <string>en</string>
     <key>CFBundleExecutable</key>
     <string>ShoutMeter</string>
     <key>CFBundleIdentifier</key>
@@ -22,9 +22,14 @@
     <string>14.0</string>
     <key>LSUIElement</key>
     <true/>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>tr</string>
+    </array>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>ShoutMeter ortam gürültüsü ile ses seviyeni karşılaştırıp menü barında gösterebilmek için mikrofonu dinler. Ses hiçbir yere kaydedilmez veya gönderilmez.</string>
+    <string>ShoutMeter listens to the microphone so it can compare your voice with the room's noise level and show it in the menu bar. Audio is never recorded or sent anywhere.</string>
 </dict>
 </plist>

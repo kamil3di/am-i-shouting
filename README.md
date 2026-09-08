@@ -1,107 +1,122 @@
 # ShoutMeter
 
-macOS menü barında duran küçük bir seviye göstergesi: ortam gürültüsünü sürekli
-öğrenir, sesini onunla karşılaştırır ve bağırıp bağırmadığını renkle söyler.
+A small level meter that lives in the macOS menu bar. It continuously learns the
+room's noise floor, compares your voice against it, and tells you by colour
+whether you are shouting.
 
 ```
-[▬▬▬▬▬▭|▭]   yeşil = normal · sarı = yüksek · kırmızı = bağırıyorsun
+[▬▬▬▬▬▭|▭]   green = normal · yellow = loud · red = shouting
 ```
 
-Dock ikonu yok (`LSUIElement`), pencere yok. Ses hiçbir yere kaydedilmez veya
-gönderilmez; her şey bellekte, anlık seviye hesabı olarak kalır.
+No Dock icon (`LSUIElement`), no window. Audio is never recorded or sent
+anywhere; it exists only as a running level calculation in memory.
 
-## Nasıl çalışır
+The UI ships in **English** and can be switched to **Türkçe** from the popover
+at any time — the choice is remembered.
 
-Tek bir mikrofonla "ortam sesi" ile "senin sesin" fiziksel olarak ayrılamaz —
-mikrofon ikisini birlikte duyar. Bu yüzden ShoutMeter şunu ölçer: **sesin,
-ortamın gürültü tabanının kaç dB üstünde.**
+## How it works
 
-1. **Gürültü tabanı** — son 12 saniyenin 10. yüzdeliği. Konuşma arasındaki
-   boşluklar odanın kendi sesini gösterir, taban bunlardan öğrenilir.
-   Taban en fazla ~3 dB/s yükselebilir, yani kesintisiz bağırsan bile sesin
-   "ortam" sayılmaz; düşerken hızlıdır (20 dB/s), çünkü oda gerçekten
-   sessizleşmiş olabilir.
-2. **Anlık ses seviyesi** — son 0.8 saniyenin 80. yüzdeliği. Tepe değil:
-   tek bir kapı çarpması veya klavye tıkı 80. yüzdeliğe ulaşamaz, gerçek
-   konuşma kolayca ulaşır.
-3. **Fark** = ses − taban. Eşikler bu farkın üstünde durur:
-   normal (varsayılan +22 dB) → yüksek (+5 dB) → bağırıyor (+11 dB).
-4. **Histerezis** — kırmızıya geçiş hızlı (0.15 s), sakinleşme yavaş (0.9 s),
-   böylece kelimeler arasında renk titremez.
+A single microphone cannot physically separate "the room" from "your voice" —
+it hears both at once. So ShoutMeter measures something it actually can:
+**how many dB above the room's noise floor you are.**
 
-Sonuç: sessiz bir ofiste bağırmak sayılan ses seviyesi, gürültülü bir kafede
-normal konuşma sayılır — ölçüt ortamla birlikte kayar.
+1. **Noise floor** — the 10th percentile of the last 12 seconds. The gaps
+   between words reveal what the room itself sounds like, and the floor is
+   learned from those. It may only rise at ~3 dB/s, so even sustained shouting
+   never becomes "ambient"; it falls quickly (20 dB/s), because a room going
+   quiet is real and immediate.
+2. **Your current level** — the 80th percentile of the last 0.8 seconds. Not the
+   peak: a single door slam or keyboard click occupies too few slices to reach
+   the 80th percentile, while real speech reaches it easily.
+3. **Excess** = level − floor. The thresholds sit on top of that excess:
+   normal (default +22 dB) → loud (+5 dB) → shouting (+11 dB).
+4. **Hysteresis** — escalating is fast (0.15 s) and calming down is slow
+   (0.9 s), so the colour does not flicker between words.
 
-## Kurulum
+The result: a level that counts as shouting in a silent office is an ordinary
+speaking voice in a busy café. The bar moves with the room.
+
+## Install
 
 ```bash
 make app && open dist/ShoutMeter.app
 ```
 
-`make app` derler, `dist/ShoutMeter.app` paketini kurar ve ad-hoc imzalar.
-Sabit bir imza kimliği kullanıldığı için macOS mikrofon iznini yeniden
-derlemeler arasında hatırlar. İlk çalıştırmada mikrofon izni sorar.
+`make app` compiles, assembles `dist/ShoutMeter.app` and signs it ad-hoc. The
+signature uses a stable identifier, so macOS remembers the microphone grant
+across rebuilds. The first launch asks for microphone access.
 
-Intel + Apple Silicon evrensel derleme için `make universal`.
+For a universal Intel + Apple Silicon binary, use `make universal`.
 
-## Kullanım
+## Using it
 
-Menü barındaki bara tıklayınca panel açılır:
+Click the bar in the menu bar to open the panel:
 
-- **Ortam gürültüsü / anlık sesin / fark / bağırma eşiği** — canlı dB değerleri.
-- **Normal sesimi ölç** — 5 saniye normal ses tonunda konuş; eşikler senin
-  sesine göre yeniden ayarlanır ve kaydedilir. Mikrofonu, sesini ve oturma
-  mesafeni bilen tek şey bu kalibrasyondur, en çok işe yarayan ayar budur.
-- **Hassasiyet** — −8…+8 dB. Sağa kaydırmak eşikleri düşürür (daha erken uyarır).
-- **Duraklat** — mikrofonu bırakır.
+- **Ambient noise / your level / above ambient / shout threshold** — live dB
+  readings.
+- **Measure my normal voice** — speak normally for 5 seconds; the thresholds are
+  rebuilt around your own voice and saved. This calibration is the only thing
+  that knows your microphone, your voice and how far you sit from it, so it is
+  by far the most useful setting.
+- **Sensitivity** — −8…+8 dB. Sliding right lowers the thresholds (flags you
+  earlier).
+- **Language** — English / Türkçe, applied immediately.
+- **Pause** — releases the microphone.
 
-Ayarlar `UserDefaults`'ta saklanır.
+Settings are stored in `UserDefaults`.
 
-## Teşhis modu
+## Diagnostic mode
 
-Menü barına bakmadan ne ölçüldüğünü görmek için:
+To see what is being measured without watching the menu bar:
 
 ```bash
 ./dist/ShoutMeter.app/Contents/MacOS/ShoutMeter --probe 15
 ```
 
-Saniyede birkaç satır giriş / taban / ses / fark / durum basar. Eşikleri
-kendi odanda ayarlarken veya "neden kırmızı oldu" diye sorarken en hızlı yol.
+It prints a few lines per second of input / floor / voice / excess / state. This
+is the quickest way to tune thresholds for your own room, or to answer "why did
+it just go red?".
 
-## Bilinen sınırlar
+## Known limits
 
-- **AirPods ve benzeri Bluetooth kulaklıklar** kendi gürültü ve yankı
-  bastırmasını uygular. Bilgisayarın kendi çaldığı ses mikrofona büyük ölçüde
-  ulaşmaz (bu yüzden hoparlörden ses çalarak test etmek çalışmaz) ve gürültü
-  tabanı gerçek odadan daha sessiz görünür. Kalibrasyon bunu telafi eder.
-- **İlk ~1.5 saniye** karar verilmez, taban öğrenilene kadar durum "sessiz"dir.
-  Giriş cihazı değiştiğinde (kulaklık takılınca) tap yeniden kurulur ve bu
-  öğrenme sıfırdan başlar.
-- **Konuşma tanıma yok.** Yeterince yüksek herhangi bir sürekli ses konuşma
-  sayılır: kalorifer, klima, yanındaki masa. Sinyal tamamen sessizse (susturulmuş
-  mikrofon) panel "Sinyal yok" der, tabanı bozmaz.
-- **dBFS mutlak bir gürültü ölçüsü değildir.** Mikrofon kazancına bağlıdır;
-  bu yüzden her şey ortama *göreli* ölçülür.
+- **AirPods and similar Bluetooth headsets** apply their own noise and echo
+  cancellation. Audio the Mac plays itself largely never reaches the microphone
+  (so testing by playing a sound through the speakers does not work), and the
+  noise floor looks quieter than the real room. Calibration compensates.
+- **The first ~1.5 seconds** produce no verdict; the state stays "quiet" until
+  the floor has been learned. Changing the input device (plugging in a headset)
+  rebuilds the tap and restarts that learning.
+- **A silent input is rejected rather than believed.** A fresh or muted stream
+  delivers exact zeros (−100 dBFS); treating that as "a very quiet room" would
+  peg the floor at digital silence and make the next ordinary word look like a
+  40 dB scream. The panel says "No signal" instead.
+- **There is no speech recognition.** Any sustained sound loud enough counts as
+  speech: a radiator, an air conditioner, the desk next to you.
+- **dBFS is not an absolute measure of loudness.** It depends on microphone
+  gain, which is exactly why everything here is measured *relative* to the room.
 
-## Geliştirme
+## Development
 
 ```bash
-swift build          # derle
-swift test           # 32 test
-make run             # derle, kur, çalıştır
+swift build          # compile
+swift test           # 46 tests
+make run             # build, assemble, launch
 make clean
 ```
 
-Detektör zamanı `LevelSample.time` üzerinden alır (duvar saatinden değil), bu
-yüzden testler sanal saatle 20 kare/saniye besleyip taban eğimi, histerezis ve
-pencere davranışını deterministik olarak doğrular.
+The detector takes its time from `LevelSample.time` rather than the wall clock,
+so the tests drive it with a virtual clock at 20 frames per second and verify
+the floor slew limits, hysteresis and window behaviour deterministically. The
+menu bar image is verified by reading pixels back out of it, and the popover is
+laid out in both languages as a smoke test.
 
-| Dosya | Sorumluluk |
+| File | Responsibility |
 | --- | --- |
-| `AudioMonitor.swift` | `AVAudioEngine` tap, arabellekleri 40 ms'lik dilimlere bölüp RMS/tepe dBFS üretir |
-| `ShoutDetector.swift` | Gürültü tabanı, fark, eşikler, histerezis, kalibrasyon |
-| `MeterModel.swift` | Ses + detektör + kalıcı ayarlar, `ObservableObject` |
-| `StatusItemController.swift` | `NSStatusItem`, canlı bar, panel |
-| `LevelBarImage.swift` | Menü bar görüntüsünün çizimi |
+| `AudioMonitor.swift` | `AVAudioEngine` tap; slices buffers into 40 ms chunks and reports RMS / peak dBFS |
+| `ShoutDetector.swift` | Noise floor, excess, thresholds, hysteresis, calibration |
+| `MeterModel.swift` | Audio + detector + persisted settings, as an `ObservableObject` |
+| `StatusItemController.swift` | `NSStatusItem`, the live bar, the popover |
+| `LevelBarImage.swift` | Drawing of the menu bar image |
 | `DetailView.swift` | SwiftUI panel |
-| `Probe.swift` | `--probe` teşhis modu |
+| `Localization.swift` | Every user-facing string, in both languages |
+| `Probe.swift` | `--probe` diagnostic mode |

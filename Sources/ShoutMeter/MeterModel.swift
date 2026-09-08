@@ -15,11 +15,17 @@ final class MeterModel: ObservableObject {
     @Published private(set) var state: LoudnessState = .quiet
     @Published private(set) var reading: Reading = .empty
     @Published private(set) var permission: MicPermission = .unknown
-    @Published private(set) var errorMessage: String?
+    @Published private(set) var error: AudioMonitorError?
     @Published private(set) var isRunning = false
     /// Seconds left in the calibration countdown, 0 when idle.
     @Published private(set) var calibrationRemaining = 0
-    @Published private(set) var calibrationResult: String?
+    @Published private(set) var calibrationResult: CalibrationOutcome?
+
+    /// The app ships in English and can be switched at runtime; the choice is
+    /// remembered.
+    @Published var language: Language = .english {
+        didSet { defaults.set(language.rawValue, forKey: Keys.language) }
+    }
 
     /// -8...8 dB. Higher = flags shouting earlier.
     @Published var sensitivity: Double = 0 {
@@ -32,17 +38,22 @@ final class MeterModel: ObservableObject {
     private enum Keys {
         static let sensitivity = "sensitivity"
         static let normalExcess = "normalExcessDb"
+        static let language = "language"
     }
 
     private let monitor = AudioMonitor()
     private let detector: ShoutDetector
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
     private var calibrationTimer: Timer?
 
+    var strings: Strings { Strings(language) }
     var normalExcessDb: Float { detector.config.normalExcessDb }
     var isCalibrating: Bool { calibrationRemaining > 0 }
 
-    init() {
+    /// `defaults` is injectable so tests do not write into the real
+    /// preferences of the installed app.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         var config = ShoutDetector.Config()
         if let stored = defaults.object(forKey: Keys.normalExcess) as? Double {
             config.normalExcessDb = Float(stored)
@@ -51,6 +62,10 @@ final class MeterModel: ObservableObject {
         config.sensitivityDb = Float(storedSensitivity)
         detector = ShoutDetector(config: config)
         sensitivity = storedSensitivity
+        if let stored = defaults.string(forKey: Keys.language),
+           let restored = Language(rawValue: stored) {
+            language = restored
+        }
 
         monitor.onSample = { [weak self] sample in
             guard let self else { return }
@@ -58,8 +73,8 @@ final class MeterModel: ObservableObject {
             self.reading = result.reading
             if self.state != result.state { self.state = result.state }
         }
-        monitor.onError = { [weak self] message in
-            self?.errorMessage = message
+        monitor.onError = { [weak self] error in
+            self?.error = error
             self?.isRunning = false
         }
     }
@@ -86,7 +101,7 @@ final class MeterModel: ObservableObject {
 
     func start() {
         guard permission == .granted, !isRunning else { return }
-        errorMessage = nil
+        error = nil
         detector.reset()
         monitor.start()
         isRunning = monitor.isRunning
@@ -123,9 +138,9 @@ final class MeterModel: ObservableObject {
             self.calibrationTimer = nil
             if let value = self.detector.finishCalibration() {
                 self.defaults.set(Double(value), forKey: Keys.normalExcess)
-                self.calibrationResult = "Normal sesin ortamın \(Int(value.rounded())) dB üstünde."
+                self.calibrationResult = .learned(Int(value.rounded()))
             } else {
-                self.calibrationResult = "Yeterince konuşma duyulmadı, tekrar dene."
+                self.calibrationResult = .notHeard
             }
         }
     }
@@ -137,9 +152,17 @@ final class MeterModel: ObservableObject {
         detector.cancelCalibration()
     }
 
+    #if DEBUG
+    /// Lets the tests exercise the permission-denied layout without touching
+    /// the real microphone authorisation.
+    func simulatePermissionDeniedForTesting() {
+        permission = .denied
+    }
+    #endif
+
     func resetCalibration() {
         detector.config.normalExcessDb = ShoutDetector.Config().normalExcessDb
         defaults.removeObject(forKey: Keys.normalExcess)
-        calibrationResult = "Varsayılan eşiklere dönüldü."
+        calibrationResult = .reset
     }
 }

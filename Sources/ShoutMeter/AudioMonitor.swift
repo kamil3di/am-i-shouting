@@ -1,6 +1,11 @@
 import AVFoundation
 import QuartzCore
 
+enum AudioMonitorError: Equatable {
+    case noInputDevice
+    case engineFailed(String)
+}
+
 /// One analysed slice of audio, stamped with its position on the audio
 /// timeline (the same time base as `CACurrentMediaTime()`).
 struct LevelSample {
@@ -18,7 +23,7 @@ struct LevelSample {
 final class AudioMonitor {
 
     var onSample: ((LevelSample) -> Void)?
-    var onError: ((String) -> Void)?
+    var onError: ((AudioMonitorError) -> Void)?
 
     /// Length of one reported slice. 40 ms ≈ 25 updates per second.
     private static let sliceSeconds = 0.04
@@ -42,7 +47,7 @@ final class AudioMonitor {
         let input = engine.inputNode
         let format = input.inputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else {
-            onError?("Ses girişi bulunamadı. Bir mikrofon bağlı mı?")
+            onError?(.noInputDevice)
             return
         }
 
@@ -62,7 +67,7 @@ final class AudioMonitor {
             isRunning = true
         } catch {
             removeTap()
-            onError?("Ses motoru başlatılamadı: \(error.localizedDescription)")
+            onError?(.engineFailed(error.localizedDescription))
         }
     }
 

@@ -28,6 +28,12 @@ rm -rf "$APP"
 mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
 cp "$BIN" "${APP}/Contents/MacOS/${APP_NAME}"
 cp Resources/Info.plist "${APP}/Contents/Info.plist"
+# Localised microphone prompt: the system dialog follows the user's macOS
+# language, while the app's own UI language is chosen in the popover.
+for lproj in Resources/*.lproj; do
+    [[ -d "$lproj" ]] || continue
+    cp -R "$lproj" "${APP}/Contents/Resources/"
+done
 printf 'APPL????' > "${APP}/Contents/PkgInfo"
 
 # Ad-hoc signature with a stable identifier, so macOS remembers the microphone
