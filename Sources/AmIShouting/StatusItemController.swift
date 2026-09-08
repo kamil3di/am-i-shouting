@@ -44,6 +44,12 @@ final class StatusItemController {
             }
             .store(in: &cancellables)
 
+        model.$isCalibrated
+            .sink { [weak self] _ in
+                self?.lastColor = .clear      // force the next render to redo the tooltip
+            }
+            .store(in: &cancellables)
+
         model.$permission
             .sink { [weak self] permission in
                 if permission == .denied { self?.render(reading: .empty, state: .quiet) }
@@ -72,9 +78,13 @@ final class StatusItemController {
             color: color
         )
         let strings = model.strings
-        statusItem.button?.toolTip = live
-            ? strings.tooltip(state: state, excessDb: Int(reading.excessDb.rounded()))
-            : (model.isRunning ? strings.tooltipNoSignal : strings.tooltipPaused)
+        if !model.isCalibrated && model.permission == .granted {
+            statusItem.button?.toolTip = strings.tooltipNotCalibrated
+        } else {
+            statusItem.button?.toolTip = live
+                ? strings.tooltip(state: state, excessDb: Int(reading.excessDb.rounded()))
+                : (model.isRunning ? strings.tooltipNoSignal : strings.tooltipPaused)
+        }
     }
 
     @objc private func togglePopover() {

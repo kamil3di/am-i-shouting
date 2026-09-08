@@ -12,6 +12,7 @@ struct DetailView: View {
             if model.permission == .denied {
                 permissionDenied
             } else {
+                if !model.isCalibrated { calibrationPrompt }
                 LevelBar(reading: model.reading, color: barColor)
                 numbers
                 Divider()
@@ -64,6 +65,26 @@ struct DetailView: View {
         }
     }
 
+    /// Shown until the thresholds have heard this particular voice. Without it
+    /// the app looks like it is working while quietly guessing.
+    private var calibrationPrompt: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(strings.notCalibrated)
+                    .font(.caption.weight(.semibold))
+                Text(strings.notCalibratedDetail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+    }
+
     private var permissionDenied: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(strings.micDenied)
@@ -80,11 +101,14 @@ struct DetailView: View {
     }
 
     private var numbers: some View {
-        VStack(spacing: 4) {
-            row(strings.ambientNoise, db(model.reading.floorDb))
-            row(strings.yourLevel, db(model.reading.voiceDb))
-            row(strings.aboveAmbient, relative(model.reading.excessDb))
-            row(strings.shoutThreshold, relative(model.reading.shoutThresholdDb))
+        // While paused there is nothing being measured, so report that rather
+        // than a stale "+0 dB" that reads like a real reading.
+        let live = model.isRunning
+        return VStack(spacing: 4) {
+            row(strings.ambientNoise, live ? db(model.reading.floorDb) : "—")
+            row(strings.yourLevel, live ? db(model.reading.voiceDb) : "—")
+            row(strings.aboveAmbient, live ? relative(model.reading.excessDb) : "—")
+            row(strings.shoutThreshold, live ? relative(model.reading.shoutThresholdDb) : "—")
         }
     }
 
@@ -110,12 +134,8 @@ struct DetailView: View {
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 8) {
-                Button(model.isCalibrating
-                       ? strings.speakNow(model.calibrationRemaining)
-                       : strings.measureMyVoice) {
-                    model.startCalibration()
-                }
-                .disabled(!model.isRunning || model.isCalibrating)
+                calibrateButton
+                    .disabled(!model.isRunning || model.isCalibrating)
 
                 Button(strings.reset) { model.resetCalibration() }
                     .disabled(model.isCalibrating)
@@ -124,6 +144,19 @@ struct DetailView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private var calibrateButton: some View {
+        let label = model.isCalibrating
+            ? strings.speakNow(model.calibrationRemaining)
+            : strings.measureMyVoice
+        if model.isCalibrated {
+            Button(label) { model.startCalibration() }
+        } else {
+            Button(label) { model.startCalibration() }
+                .buttonStyle(.borderedProminent)
         }
     }
 

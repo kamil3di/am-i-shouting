@@ -21,6 +21,10 @@ final class MeterModel: ObservableObject {
     @Published private(set) var calibrationRemaining = 0
     @Published private(set) var calibrationResult: CalibrationOutcome?
 
+    /// False until the thresholds have heard the user's own voice at least
+    /// once. Until then they are a guess, and the panel says so.
+    @Published private(set) var isCalibrated = false
+
     /// The app ships in English and can be switched at runtime; the choice is
     /// remembered.
     @Published var language: Language = .english {
@@ -57,6 +61,7 @@ final class MeterModel: ObservableObject {
         var config = ShoutDetector.Config()
         if let stored = defaults.object(forKey: Keys.normalExcess) as? Double {
             config.normalExcessDb = Float(stored)
+            isCalibrated = true
         }
         let storedSensitivity = defaults.object(forKey: Keys.sensitivity) as? Double ?? 0
         config.sensitivityDb = Float(storedSensitivity)
@@ -138,6 +143,7 @@ final class MeterModel: ObservableObject {
             self.calibrationTimer = nil
             if let value = self.detector.finishCalibration() {
                 self.defaults.set(Double(value), forKey: Keys.normalExcess)
+                self.isCalibrated = true
                 self.calibrationResult = .learned(Int(value.rounded()))
             } else {
                 self.calibrationResult = .notHeard
@@ -163,6 +169,7 @@ final class MeterModel: ObservableObject {
     func resetCalibration() {
         detector.config.normalExcessDb = ShoutDetector.Config().normalExcessDb
         defaults.removeObject(forKey: Keys.normalExcess)
+        isCalibrated = false
         calibrationResult = .reset
     }
 }

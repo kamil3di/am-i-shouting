@@ -40,6 +40,21 @@ final class DetailViewTests: XCTestCase {
         }
     }
 
+    /// The prompt adds a block to the panel, so it needs its own layout pass.
+    func testPopoverLaysOutWithAndWithoutTheCalibrationPrompt() {
+        let uncalibrated = model()
+        XCTAssertFalse(uncalibrated.isCalibrated)
+        let withPrompt = layout(uncalibrated).fittingSize.height
+
+        let defaults = UserDefaults(suiteName: "AmIShoutingTests.\(UUID().uuidString)")!
+        defaults.set(17.0, forKey: "normalExcessDb")
+        let calibrated = MeterModel(defaults: defaults)
+        let withoutPrompt = layout(calibrated).fittingSize.height
+
+        XCTAssertGreaterThan(withPrompt, withoutPrompt,
+                             "the prompt should actually take up space when shown")
+    }
+
     func testSwitchingLanguageChangesWhatThePopoverWouldShow() {
         let model = model()
         model.language = .english

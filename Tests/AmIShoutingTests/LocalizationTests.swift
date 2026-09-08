@@ -42,6 +42,37 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(MeterModel(defaults: defaults).language, .english)
     }
 
+    // MARK: - Calibration state
+
+    func testAFreshInstallIsNotCalibrated() {
+        let (model, _) = freshModel()
+        XCTAssertFalse(model.isCalibrated, "the prompt has to show on a fresh install")
+    }
+
+    func testAStoredReferenceCountsAsCalibrated() {
+        let (_, defaults) = freshModel()
+        defaults.set(17.0, forKey: "normalExcessDb")
+        XCTAssertTrue(MeterModel(defaults: defaults).isCalibrated)
+    }
+
+    func testResettingCalibrationBringsThePromptBack() {
+        let (_, defaults) = freshModel()
+        defaults.set(17.0, forKey: "normalExcessDb")
+        let model = MeterModel(defaults: defaults)
+        model.resetCalibration()
+        XCTAssertFalse(model.isCalibrated, "back to guessed thresholds, so say so again")
+        XCTAssertEqual(model.calibrationResult, .reset)
+    }
+
+    /// The prompt has to name the button that dismisses it, in either language.
+    func testThePromptPointsAtTheButton() {
+        for language in Language.allCases {
+            let strings = Strings(language)
+            XCTAssertTrue(strings.notCalibratedDetail.contains(strings.measureMyVoice),
+                          "the prompt does not name the button in \(language.rawValue)")
+        }
+    }
+
     // MARK: - Coverage
 
     func testEveryVerdictHasTextInBothLanguages() {
@@ -103,6 +134,9 @@ final class LocalizationTests: XCTestCase {
             (english.pause, turkish.pause),
             (english.quit, turkish.quit),
             (english.micDenied, turkish.micDenied),
+            (english.notCalibrated, turkish.notCalibrated),
+            (english.notCalibratedDetail, turkish.notCalibratedDetail),
+            (english.tooltipNotCalibrated, turkish.tooltipNotCalibrated),
             (english.tooltipPaused, turkish.tooltipPaused),
         ]
         for (en, tr) in pairs {

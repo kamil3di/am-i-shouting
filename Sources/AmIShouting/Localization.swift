@@ -105,6 +105,11 @@ struct Strings {
     // MARK: - Calibration
 
     var calibration: String { pick("Calibration", "Kalibrasyon") }
+    var notCalibrated: String { pick("Not calibrated yet", "Henüz kalibre edilmedi") }
+    var notCalibratedDetail: String {
+        pick("The thresholds are only a guess until they have heard your voice. Press \"\(measureMyVoice)\" and speak normally for five seconds.",
+             "Eşikler sesini duyana kadar yalnızca bir tahmin. \"\(measureMyVoice)\" düğmesine basıp beş saniye normal tonda konuş.")
+    }
     var measureMyVoice: String { pick("Measure my normal voice", "Normal sesimi ölç") }
     func speakNow(_ secondsLeft: Int) -> String {
         pick("Speak… \(secondsLeft)", "Konuş… \(secondsLeft)")
@@ -148,6 +153,10 @@ struct Strings {
     func tooltip(state: LoudnessState, excessDb: Int) -> String {
         pick("\(title(for: state)) — \(excessDb) dB above ambient",
              "\(title(for: state)) — ortamın \(excessDb) dB üstü")
+    }
+    var tooltipNotCalibrated: String {
+        pick("\(App.name) — not calibrated yet, click to set it up",
+             "\(App.name) — henüz kalibre edilmedi, ayarlamak için tıkla")
     }
     var tooltipNoSignal: String { pick("No signal from the microphone", "Mikrofondan sinyal yok") }
     var tooltipPaused: String { pick("\(App.name) is paused", "\(App.name) duraklatıldı") }
