@@ -20,18 +20,26 @@ VERSION="${VERSION:-0.1.0}"
 # A build number has to increase monotonically; the commit count does.
 BUILD_NUMBER="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
 
-ARCH_FLAGS=()
 if [[ "${UNIVERSAL:-0}" == "1" ]]; then
-    ARCH_FLAGS=(--arch arm64 --arch x86_64)
+    # Build each slice separately and lipo them together. The obvious
+    # `swift build --arch arm64 --arch x86_64` routes through the Xcode build
+    # backend instead of SwiftPM's own, which fails with "unexpected duplicate
+    # tasks" on some toolchains — including the GitHub macOS runners.
+    echo "==> swift build -c release (universal)"
+    SLICES=()
+    for TRIPLE in arm64-apple-macosx x86_64-apple-macosx; do
+        swift build -c release --triple "$TRIPLE"
+        SLICES+=("$(swift build -c release --triple "$TRIPLE" --show-bin-path)/${BIN_NAME}")
+    done
+    mkdir -p .build/universal
+    BIN=".build/universal/${BIN_NAME}"
+    lipo -create -output "$BIN" "${SLICES[@]}"
+    echo "==> $(lipo -archs "$BIN")"
+else
+    echo "==> swift build -c release"
+    swift build -c release
+    BIN="$(swift build -c release --show-bin-path)/${BIN_NAME}"
 fi
-
-# ${ARR[@]+"${ARR[@]}"} keeps an empty array from expanding to an empty
-# argument under `set -u`.
-BUILD_ARGS=(-c release ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"})
-
-echo "==> swift build ${BUILD_ARGS[*]}"
-swift build "${BUILD_ARGS[@]}"
-BIN="$(swift build "${BUILD_ARGS[@]}" --show-bin-path)/${BIN_NAME}"
 
 echo "==> assembling ${APP} (${VERSION}, build ${BUILD_NUMBER})"
 rm -rf "$APP"

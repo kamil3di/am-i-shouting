@@ -21,7 +21,8 @@ jobs:
       - name: Test
         run: swift test
 
-      # Catches breakage in the packaging scripts, which the test suite cannot
-      # see but every release depends on.
-      - name: Assemble the app bundle
-        run: ./Scripts/build-app.sh
+      # Runs the whole release path apart from signing and publishing, so a
+      # broken script or a universal-build problem fails here rather than on a
+      # tag.
+      - name: Build the universal app and package the DMG
+        run: make dmg
