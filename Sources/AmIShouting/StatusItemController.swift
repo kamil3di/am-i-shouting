@@ -3,7 +3,7 @@ import Combine
 import SwiftUI
 
 /// The menu bar item: a live level bar that turns yellow, then red.
-final class StatusItemController {
+final class StatusItemController: NSObject, NSPopoverDelegate {
 
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
@@ -16,6 +16,7 @@ final class StatusItemController {
     init(model: MeterModel) {
         self.model = model
         statusItem = NSStatusBar.system.statusItem(withLength: LevelBarImage.size.width + 8)
+        super.init()
 
         if let button = statusItem.button {
             button.imagePosition = .imageOnly
@@ -26,7 +27,12 @@ final class StatusItemController {
 
         popover.behavior = .transient
         popover.contentSize = NSSize(width: 300, height: 340)
-        popover.contentViewController = NSHostingController(rootView: DetailView(model: model))
+        popover.delegate = self
+        // The panel is built when it is opened and thrown away when it closes.
+        // A SwiftUI view that merely exists keeps observing the model, and the
+        // model publishes ~30 readings a second: a hidden panel was laying
+        // itself out 30 times a second and holding a display link alive for an
+        // animation nobody could see.
 
         // Redraw on every reading, but only when something visibly changed.
         model.$reading
@@ -92,8 +98,13 @@ final class StatusItemController {
         if popover.isShown {
             popover.performClose(nil)
         } else {
+            popover.contentViewController = NSHostingController(rootView: DetailView(model: model))
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        popover.contentViewController = nil
     }
 }
