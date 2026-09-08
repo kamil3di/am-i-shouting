@@ -36,7 +36,17 @@ seconds and it is the difference between a meter that works and one that cries
 wolf. Do it again if you switch microphone or move somewhere very different.
 
 The rest of the panel: live dB readings, a **Sensitivity** trim (−8…+8 dB,
-right flags you earlier), the language switch, and **Pause**.
+right flags you earlier), the language switch, **Pause**, and **When to
+listen**.
+
+### When to listen
+
+- **Always** (default) — the meter is live the moment you speak, and the system
+  recording indicator stays lit all day.
+- **During calls** — the microphone is opened only while another app is using
+  it, so the indicator stays dark the rest of the time. "Another app" means a
+  real, user-facing one: system daemons hold the input for their own reasons
+  and do not count.
 
 ## How it works
 

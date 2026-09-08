@@ -86,6 +86,39 @@ struct Strings {
              "Giriş tamamen sessiz. Mikrofon susturulmuş ya da henüz hazır değil.")
     }
 
+    var waitingForCall: String { pick("Waiting for a call", "Görüşme bekleniyor") }
+    var waitingForCallDetail: String {
+        pick("The microphone stays closed until another app opens it.",
+             "Başka bir uygulama mikrofonu açana kadar mikrofon kapalı kalır.")
+    }
+
+    // MARK: - Listening mode
+
+    var whenToListen: String { pick("When to listen", "Ne zaman dinlesin") }
+
+    func name(for mode: ListeningMode) -> String {
+        switch mode {
+        case .always: return pick("Always", "Her zaman")
+        case .duringCalls: return pick("During calls", "Görüşmelerde")
+        }
+    }
+
+    func hint(for mode: ListeningMode) -> String {
+        switch mode {
+        case .always:
+            return pick("The meter is live the moment you speak, and the system recording indicator stays lit.",
+                        "Konuştuğun anda ölçer canlı, ama sistemin kayıt göstergesi sürekli yanar.")
+        case .duringCalls:
+            return pick("Opens the microphone only while another app is using it, so the recording indicator stays dark the rest of the day.",
+                        "Mikrofonu yalnızca başka bir uygulama kullanırken açar; günün geri kalanında kayıt göstergesi yanmaz.")
+        }
+    }
+
+    var callDetectionUnavailable: String {
+        pick("This Mac will not report which apps use the microphone, so this behaves like Always.",
+             "Bu Mac mikrofonu hangi uygulamaların kullandığını bildirmiyor; bu seçenek \"\(name(for: .always))\" gibi davranır.")
+    }
+
     // MARK: - Permission
 
     var micDenied: String { pick("Microphone access is off.", "Mikrofon erişimi kapalı.") }
@@ -157,6 +190,9 @@ struct Strings {
     var tooltipNotCalibrated: String {
         pick("\(App.name) — not calibrated yet, click to set it up",
              "\(App.name) — henüz kalibre edilmedi, ayarlamak için tıkla")
+    }
+    var tooltipWaiting: String {
+        pick("\(App.name) — waiting for a call", "\(App.name) — görüşme bekleniyor")
     }
     var tooltipNoSignal: String { pick("No signal from the microphone", "Mikrofondan sinyal yok") }
     var tooltipPaused: String { pick("\(App.name) is paused", "\(App.name) duraklatıldı") }

@@ -138,6 +138,11 @@ final class LocalizationTests: XCTestCase {
             (english.notCalibratedDetail, turkish.notCalibratedDetail),
             (english.tooltipNotCalibrated, turkish.tooltipNotCalibrated),
             (english.tooltipPaused, turkish.tooltipPaused),
+            (english.tooltipWaiting, turkish.tooltipWaiting),
+            (english.waitingForCall, turkish.waitingForCall),
+            (english.waitingForCallDetail, turkish.waitingForCallDetail),
+            (english.whenToListen, turkish.whenToListen),
+            (english.hint(for: .duringCalls), turkish.hint(for: .duringCalls)),
         ]
         for (en, tr) in pairs {
             XCTAssertNotEqual(en, tr, "\"\(en)\" was left untranslated")

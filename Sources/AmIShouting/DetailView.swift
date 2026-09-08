@@ -18,6 +18,7 @@ struct DetailView: View {
                 Divider()
                 calibration
                 sensitivitySlider
+                listeningModePicker
             }
             if let error = model.error {
                 Text(strings.message(for: error))
@@ -37,11 +38,15 @@ struct DetailView: View {
     }
 
     private var headline: String {
+        if model.isPaused { return strings.paused }
+        if model.isWaitingForCall { return strings.waitingForCall }
         guard model.isRunning else { return strings.paused }
         return model.reading.hasSignal ? strings.title(for: model.state) : strings.noSignal
     }
 
     private var subhead: String {
+        if model.isPaused { return strings.notListening }
+        if model.isWaitingForCall { return strings.waitingForCallDetail }
         guard model.isRunning else { return strings.notListening }
         return model.reading.hasSignal
             ? strings.detail(for: model.state)
@@ -182,6 +187,26 @@ struct DetailView: View {
         }
     }
 
+    private var listeningModePicker: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(strings.whenToListen)
+                .font(.caption.weight(.medium))
+            Picker(strings.whenToListen, selection: $model.listeningMode) {
+                ForEach(ListeningMode.allCases) { mode in
+                    Text(strings.name(for: mode)).tag(mode)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            Text(model.listeningMode == .duringCalls && !model.canDetectCalls
+                 ? strings.callDetectionUnavailable
+                 : strings.hint(for: model.listeningMode))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private var footer: some View {
         VStack(spacing: 10) {
             HStack {
@@ -199,7 +224,7 @@ struct DetailView: View {
                 .fixedSize()
             }
             HStack {
-                Button(model.isRunning ? strings.pause : strings.resume) { model.toggle() }
+                Button(model.isPaused ? strings.resume : strings.pause) { model.toggle() }
                     .disabled(model.permission != .granted)
                 Spacer()
                 Button(strings.quit) { NSApp.terminate(nil) }

@@ -50,6 +50,12 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             }
             .store(in: &cancellables)
 
+        model.$isWaitingForCall
+            .sink { [weak self] _ in
+                self?.lastColor = .clear      // force the next render to redo the tooltip
+            }
+            .store(in: &cancellables)
+
         model.$isCalibrated
             .sink { [weak self] _ in
                 self?.lastColor = .clear      // force the next render to redo the tooltip
@@ -87,9 +93,16 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         if !model.isCalibrated && model.permission == .granted {
             statusItem.button?.toolTip = strings.tooltipNotCalibrated
         } else {
-            statusItem.button?.toolTip = live
-                ? strings.tooltip(state: state, excessDb: Int(reading.excessDb.rounded()))
-                : (model.isRunning ? strings.tooltipNoSignal : strings.tooltipPaused)
+            if live {
+                statusItem.button?.toolTip = strings.tooltip(
+                    state: state, excessDb: Int(reading.excessDb.rounded()))
+            } else if model.isRunning {
+                statusItem.button?.toolTip = strings.tooltipNoSignal
+            } else {
+                statusItem.button?.toolTip = model.isWaitingForCall
+                    ? strings.tooltipWaiting
+                    : strings.tooltipPaused
+            }
         }
     }
 
