@@ -82,19 +82,19 @@ final class ListeningModeTests: XCTestCase {
     /// whenever anything else records, and kept the meter awake after the call
     /// had ended.
     func testSystemDaemonsDoNotCountAsCalls() {
-        XCTAssertFalse(MicrophoneActivityMonitor.isUserFacingApp(1), "launchd is not a call")
-        XCTAssertFalse(MicrophoneActivityMonitor.isUserFacingApp(0))
+        XCTAssertFalse(MicrophoneActivityMonitor.belongsToUserFacingApp(1), "launchd is not a call")
+        XCTAssertFalse(MicrophoneActivityMonitor.belongsToUserFacingApp(0))
     }
 
-    func testAProcessWithNoUIDoesNotCountAsACall() {
-        // The test runner itself has no Dock presence.
-        XCTAssertFalse(
-            MicrophoneActivityMonitor.isUserFacingApp(ProcessInfo.processInfo.processIdentifier)
-        )
+    /// The walk has to terminate on every input, including nonsense.
+    func testTheParentWalkAlwaysTerminates() {
+        for pid in [pid_t(0), 1, 2, pid_t.max, -1] {
+            _ = MicrophoneActivityMonitor.belongsToUserFacingApp(pid)
+        }
     }
 
     func testAnUnknownProcessDoesNotCountAsACall() {
-        XCTAssertFalse(MicrophoneActivityMonitor.isUserFacingApp(pid_t.max))
+        XCTAssertFalse(MicrophoneActivityMonitor.belongsToUserFacingApp(pid_t.max))
     }
 
     func testEveryModeIsNamedAndExplainedInBothLanguages() {

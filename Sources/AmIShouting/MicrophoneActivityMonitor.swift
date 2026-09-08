@@ -1,5 +1,6 @@
 import AppKit
 import CoreAudio
+import Darwin
 import Foundation
 
 /// Reports whether some *other* process is capturing audio input — in
@@ -50,14 +51,39 @@ final class MicrophoneActivityMonitor {
         onChange?(recording)
     }
 
-    /// Only a real, user-facing application counts as a call.
+    /// Whether a process belongs to a real, user-facing application — either
+    /// it is one, or it was spawned by one.
     ///
-    /// System daemons hold the input for their own reasons — CoreSpeech grabs
-    /// it the moment anything else starts recording, and would otherwise keep
-    /// this app awake long after the call ended. Menu bar utilities, including
-    /// this one, are not calls either.
-    static func isUserFacingApp(_ pid: pid_t) -> Bool {
-        NSRunningApplication(processIdentifier: pid)?.activationPolicy == .regular
+    /// The parent walk is what makes browsers work: a Meet or Zoom call in
+    /// Chrome is captured by a helper process (`com.google.Chrome.helper`)
+    /// that is not an application in its own right, while its parent Chrome
+    /// is. Testing only the process itself missed every browser call.
+    ///
+    /// It still excludes what it has to. System daemons like CoreSpeech —
+    /// which grabs the input the moment anything else records, and would keep
+    /// this app awake long after a call ended — descend from launchd, not from
+    /// an app.
+    static func belongsToUserFacingApp(_ pid: pid_t) -> Bool {
+        var current = pid
+        // Deep enough for a browser's helper-of-a-helper, bounded so a cycle
+        // or a reparented process cannot spin here.
+        for _ in 0..<8 {
+            guard current > 1 else { return false }
+            if NSRunningApplication(processIdentifier: current)?.activationPolicy == .regular {
+                return true
+            }
+            guard let parent = parentPID(of: current), parent != current else { return false }
+            current = parent
+        }
+        return false
+    }
+
+    private static func parentPID(of pid: pid_t) -> pid_t? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { return nil }
+        return info.kp_eproc.e_ppid
     }
 
     /// nil when the query is unavailable, which is not the same as "nobody is
@@ -67,7 +93,7 @@ final class MicrophoneActivityMonitor {
         for process in processes {
             let processPID = pid(of: process)
             guard processPID != ownPID,
-                  Self.isUserFacingApp(processPID),
+                  Self.belongsToUserFacingApp(processPID),
                   isRunningInput(process) else { continue }
             return true
         }
