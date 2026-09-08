@@ -1,0 +1,197 @@
+import AppKit
+import SwiftUI
+
+struct DetailView: View {
+    @ObservedObject var model: MeterModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            header
+            if model.permission == .denied {
+                permissionDenied
+            } else {
+                LevelBar(reading: model.reading, color: barColor)
+                numbers
+                Divider()
+                calibration
+                sensitivitySlider
+            }
+            if let error = model.errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            Divider()
+            footer
+        }
+        .padding(16)
+        .frame(width: 300)
+    }
+
+    private var barColor: Color {
+        model.isRunning && model.reading.hasSignal ? model.state.color : Color.secondary
+    }
+
+    private var headline: String {
+        guard model.isRunning else { return "Duraklatıldı" }
+        return model.reading.hasSignal ? model.state.title : "Sinyal yok"
+    }
+
+    private var subhead: String {
+        guard model.isRunning else { return "Mikrofon dinlenmiyor." }
+        return model.reading.hasSignal
+            ? model.state.detail
+            : "Giriş tamamen sessiz. Mikrofon susturulmuş ya da henüz hazır değil."
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(barColor)
+                .frame(width: 10, height: 10)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(headline)
+                    .font(.headline)
+                Text(subhead)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+    }
+
+    private var permissionDenied: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Mikrofon erişimi kapalı.")
+                .font(.subheadline.weight(.medium))
+            Text("Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon bölümünden ShoutMeter'a izin ver, sonra uygulamayı yeniden başlat.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Gizlilik ayarlarını aç") {
+                let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    private var numbers: some View {
+        VStack(spacing: 4) {
+            row("Ortam gürültüsü", db(model.reading.floorDb))
+            row("Anlık sesin", db(model.reading.voiceDb))
+            row("Ortamın üstünde", relative(model.reading.excessDb))
+            row("Bağırma eşiği", relative(model.reading.shoutThresholdDb))
+        }
+    }
+
+    private func row(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.caption.monospacedDigit())
+        }
+    }
+
+    private var calibration: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Kalibrasyon")
+                    .font(.caption.weight(.medium))
+                Spacer()
+                Text("normal: +\(Int(model.normalExcessDb.rounded())) dB")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 8) {
+                Button(model.isCalibrating
+                       ? "Konuş… \(model.calibrationRemaining)"
+                       : "Normal sesimi ölç") {
+                    model.startCalibration()
+                }
+                .disabled(!model.isRunning || model.isCalibrating)
+
+                Button("Sıfırla") { model.resetCalibration() }
+                    .disabled(model.isCalibrating)
+            }
+            if let result = model.calibrationResult {
+                Text(result)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("5 saniye normal ses tonunda konuş; eşikler buna göre ayarlanır.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var sensitivitySlider: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text("Hassasiyet")
+                    .font(.caption.weight(.medium))
+                Spacer()
+                Text(model.sensitivity == 0
+                     ? "0 dB"
+                     : String(format: "%+.0f dB", model.sensitivity))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: $model.sensitivity, in: -8...8, step: 1) {
+                EmptyView()
+            } minimumValueLabel: {
+                Text("toleranslı").font(.caption2).foregroundStyle(.secondary)
+            } maximumValueLabel: {
+                Text("hassas").font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var footer: some View {
+        HStack {
+            Button(model.isRunning ? "Duraklat" : "Devam et") { model.toggle() }
+                .disabled(model.permission != .granted)
+            Spacer()
+            Button("Çık") { NSApp.terminate(nil) }
+        }
+    }
+
+    private func db(_ value: Float) -> String {
+        value <= -99 ? "—" : String(format: "%.0f dBFS", value)
+    }
+
+    private func relative(_ value: Float) -> String {
+        String(format: "%+.0f dB", value)
+    }
+}
+
+/// The large meter inside the popover, with a tick where shouting starts.
+private struct LevelBar: View {
+    let reading: Reading
+    let color: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.primary.opacity(0.12))
+                Capsule()
+                    .fill(color)
+                    .frame(width: max(width * reading.fill, 10))
+                Rectangle()
+                    .fill(Color.primary.opacity(0.45))
+                    .frame(width: 2, height: 20)
+                    .offset(x: width * reading.thresholdMark - 1)
+            }
+        }
+        .frame(height: 14)
+        .animation(.linear(duration: 0.08), value: reading.fill)
+    }
+}
