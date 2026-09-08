@@ -1,1 +1,3 @@
-"NSMicrophoneUsageDescription" = "ShoutMeter listens to the microphone so it can compare your voice with the room's noise level and show it in the menu bar. Audio is never recorded or sent anywhere.";
+"CFBundleName" = "Am I Shouting?";
+"CFBundleDisplayName" = "Am I Shouting?";
+"NSMicrophoneUsageDescription" = "Compares your voice with the room's noise level, so it can show in the menu bar whether you are shouting. Audio is never recorded or sent anywhere.";

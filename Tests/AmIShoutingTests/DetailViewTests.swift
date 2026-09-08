@@ -1,14 +1,14 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import ShoutMeter
+@testable import AmIShouting
 
 /// Smoke tests: actually build and lay out the popover, so a broken view body
 /// or a bad binding fails here instead of on the first click in the menu bar.
 final class DetailViewTests: XCTestCase {
 
     private func model() -> MeterModel {
-        MeterModel(defaults: UserDefaults(suiteName: "ShoutMeterTests.\(UUID().uuidString)")!)
+        MeterModel(defaults: UserDefaults(suiteName: "AmIShoutingTests.\(UUID().uuidString)")!)
     }
 
     private func layout(_ model: MeterModel) -> NSHostingView<DetailView> {

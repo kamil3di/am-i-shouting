@@ -1,5 +1,5 @@
 import XCTest
-@testable import ShoutMeter
+@testable import AmIShouting
 
 /// The detector's behaviour is time-dependent (how fast the noise floor may
 /// move, how long a verdict must hold), so every test drives it with a virtual

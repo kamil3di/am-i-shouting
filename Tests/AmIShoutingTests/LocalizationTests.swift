@@ -1,5 +1,5 @@
 import XCTest
-@testable import ShoutMeter
+@testable import AmIShouting
 
 final class LocalizationTests: XCTestCase {
 
@@ -8,7 +8,7 @@ final class LocalizationTests: XCTestCase {
     private let allStates: [LoudnessState] = [.quiet, .normal, .loud, .shouting]
 
     private func freshModel() -> (MeterModel, UserDefaults) {
-        let suite = "ShoutMeterTests.\(UUID().uuidString)"
+        let suite = "AmIShoutingTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         return (MeterModel(defaults: defaults), defaults)
     }

@@ -1,8 +1,8 @@
-# ShoutMeter
+# Am I Shouting?
 
-A small level meter that lives in the macOS menu bar. It continuously learns the
-room's noise floor, compares your voice against it, and tells you by colour
-whether you are shouting.
+A small level meter that lives in the macOS menu bar and answers exactly that
+question. It continuously learns the room's noise floor, compares your voice
+against it, and tells you by colour whether you are shouting.
 
 ```
 [▬▬▬▬▬▭|▭]   green = normal · yellow = loud · red = shouting
@@ -17,7 +17,7 @@ at any time — the choice is remembered.
 ## How it works
 
 A single microphone cannot physically separate "the room" from "your voice" —
-it hears both at once. So ShoutMeter measures something it actually can:
+it hears both at once. So this app measures something it actually can:
 **how many dB above the room's noise floor you are.**
 
 1. **Noise floor** — the 10th percentile of the last 12 seconds. The gaps
@@ -39,10 +39,10 @@ speaking voice in a busy café. The bar moves with the room.
 ## Install
 
 ```bash
-make app && open dist/ShoutMeter.app
+make app && open "dist/Am I Shouting.app"
 ```
 
-`make app` compiles, assembles `dist/ShoutMeter.app` and signs it ad-hoc. The
+`make app` compiles, assembles `dist/Am I Shouting.app` and signs it ad-hoc. The
 signature uses a stable identifier, so macOS remembers the microphone grant
 across rebuilds. The first launch asks for microphone access.
 
@@ -70,7 +70,7 @@ Settings are stored in `UserDefaults`.
 To see what is being measured without watching the menu bar:
 
 ```bash
-./dist/ShoutMeter.app/Contents/MacOS/ShoutMeter --probe 15
+"./dist/Am I Shouting.app/Contents/MacOS/AmIShouting" --probe 15
 ```
 
 It prints a few lines per second of input / floor / voice / excess / state. This
@@ -118,5 +118,5 @@ laid out in both languages as a smoke test.
 | `StatusItemController.swift` | `NSStatusItem`, the live bar, the popover |
 | `LevelBarImage.swift` | Drawing of the menu bar image |
 | `DetailView.swift` | SwiftUI panel |
-| `Localization.swift` | Every user-facing string, in both languages |
+| `Localization.swift` | The app name and every user-facing string, in both languages |
 | `Probe.swift` | `--probe` diagnostic mode |

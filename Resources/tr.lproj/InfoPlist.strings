@@ -1,1 +1,3 @@
-"NSMicrophoneUsageDescription" = "ShoutMeter, sesini ortamın gürültü seviyesiyle karşılaştırıp menü barında gösterebilmek için mikrofonu dinler. Ses hiçbir yere kaydedilmez veya gönderilmez.";
+"CFBundleName" = "Am I Shouting?";
+"CFBundleDisplayName" = "Am I Shouting?";
+"NSMicrophoneUsageDescription" = "Sesini ortamın gürültü seviyesiyle karşılaştırır ve bağırıp bağırmadığını menü barında gösterir. Ses hiçbir yere kaydedilmez veya gönderilmez.";

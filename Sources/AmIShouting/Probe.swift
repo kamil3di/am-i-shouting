@@ -2,7 +2,7 @@ import AppKit
 import AVFoundation
 import Foundation
 
-/// `ShoutMeter --probe [seconds]` prints one line per audio buffer instead of
+/// `'Am I Shouting' --probe [seconds]` prints one line per audio buffer instead of
 /// showing the menu bar item. Used to check that the input device, the level
 /// maths and the floor tracking behave on a given machine.
 enum Probe {

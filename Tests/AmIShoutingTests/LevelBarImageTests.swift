@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import ShoutMeter
+@testable import AmIShouting
 
 /// The menu bar item is a drawn image, so the "does it actually turn red"
 /// question is answered by reading pixels back out of it.

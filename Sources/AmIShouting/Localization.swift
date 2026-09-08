@@ -1,5 +1,11 @@
 import Foundation
 
+/// The user-visible name, kept in one place so the menu bar tooltip, the
+/// permission text and the Info.plist cannot drift apart.
+enum App {
+    static let name = "Am I Shouting?"
+}
+
 enum Language: String, CaseIterable, Identifiable {
     case english = "en"
     case turkish = "tr"
@@ -84,8 +90,8 @@ struct Strings {
 
     var micDenied: String { pick("Microphone access is off.", "Mikrofon erişimi kapalı.") }
     var micDeniedDetail: String {
-        pick("Allow ShoutMeter under System Settings → Privacy & Security → Microphone, then restart the app.",
-             "Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon bölümünden ShoutMeter'a izin ver, sonra uygulamayı yeniden başlat.")
+        pick("Allow \(App.name) under System Settings → Privacy & Security → Microphone, then restart the app.",
+             "Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon bölümünden \"\(App.name)\" uygulamasına izin ver, sonra uygulamayı yeniden başlat.")
     }
     var openPrivacySettings: String { pick("Open privacy settings", "Gizlilik ayarlarını aç") }
 
@@ -138,13 +144,13 @@ struct Strings {
 
     // MARK: - Menu bar
 
-    var accessibilityLabel: String { pick("ShoutMeter level", "ShoutMeter ses seviyesi") }
+    var accessibilityLabel: String { pick("\(App.name) level", "\(App.name) ses seviyesi") }
     func tooltip(state: LoudnessState, excessDb: Int) -> String {
         pick("\(title(for: state)) — \(excessDb) dB above ambient",
              "\(title(for: state)) — ortamın \(excessDb) dB üstü")
     }
     var tooltipNoSignal: String { pick("No signal from the microphone", "Mikrofondan sinyal yok") }
-    var tooltipPaused: String { pick("ShoutMeter is paused", "ShoutMeter duraklatıldı") }
+    var tooltipPaused: String { pick("\(App.name) is paused", "\(App.name) duraklatıldı") }
 
     // MARK: - Errors
 
