@@ -38,15 +38,32 @@ speaking voice in a busy café. The bar moves with the room.
 
 ## Install
 
+Download the latest `.dmg` from the [releases page](https://github.com/kamil3di/am-i-shouting/releases/latest),
+open it, and drag **Am I Shouting?** to your Applications folder.
+
+> **First launch.** Releases are not signed with an Apple Developer ID yet, so
+> macOS refuses to open the app the first time and says it cannot verify the
+> developer. Try to open it once, then go to **System Settings → Privacy &
+> Security**, find the message about "Am I Shouting?" near the bottom, and
+> choose **Open Anyway**. You only need to do this once. Signing and
+> notarisation are already wired into the release pipeline; they switch on as
+> soon as a Developer ID certificate is available, and then this step
+> disappears.
+
+The app asks for microphone access on first launch.
+
+### From source
+
 ```bash
 make app && open "dist/Am I Shouting.app"
 ```
 
-`make app` compiles, assembles `dist/Am I Shouting.app` and signs it ad-hoc. The
-signature uses a stable identifier, so macOS remembers the microphone grant
-across rebuilds. The first launch asks for microphone access.
+`make app` compiles, assembles `dist/Am I Shouting.app` and signs it ad-hoc,
+which is enough for local use. The signature uses a stable identifier, so macOS
+remembers the microphone grant across rebuilds.
 
-For a universal Intel + Apple Silicon binary, use `make universal`.
+`make universal` builds for Intel and Apple Silicon; `make dmg` produces the
+packaged disk image a release ships.
 
 ## Using it
 
@@ -95,6 +112,31 @@ it just go red?".
 - **dBFS is not an absolute measure of loudness.** It depends on microphone
   gain, which is exactly why everything here is measured *relative* to the room.
 
+## Releasing
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The [release workflow](.github/workflows/release.yml) runs the tests, builds a
+universal binary, stamps the version from the tag, packages a DMG with a
+SHA-256 checksum, and publishes a GitHub release.
+
+To make releases install without the Gatekeeper detour, add these repository
+secrets — the same pipeline then signs and notarises with no workflow change:
+
+| Secret | What it is |
+| --- | --- |
+| `APPLE_CERTIFICATE` | Developer ID Application certificate, exported as `.p12` and base64-encoded |
+| `APPLE_CERTIFICATE_PASSWORD` | the password used when exporting that `.p12` |
+| `APPLE_ID` | Apple ID of the developer account |
+| `APPLE_APP_PASSWORD` | an app-specific password for that Apple ID |
+| `APPLE_TEAM_ID` | the ten-character team identifier |
+
+All of these require a paid Apple Developer Program membership. A free Apple ID
+cannot issue a Developer ID certificate, and without one there is no way to
+avoid the first-launch warning.
+
 ## Development
 
 ```bash
@@ -120,3 +162,8 @@ laid out in both languages as a smoke test.
 | `DetailView.swift` | SwiftUI panel |
 | `Localization.swift` | The app name and every user-facing string, in both languages |
 | `Probe.swift` | `--probe` diagnostic mode |
+
+
+## License
+
+[MIT](LICENSE)

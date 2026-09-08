@@ -1,0 +1,110 @@
+name: Release
+
+# Pushing a v* tag builds, packages and publishes. Signing and notarisation
+# switch themselves on as soon as the Apple secrets exist; until then the same
+# pipeline ships an unsigned build.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The bundle's build number is the commit count, so the full history
+          # has to be here.
+          fetch-depth: 0
+
+      - name: Resolve the version from the tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: swift test
+
+      - name: Look for signing credentials
+        id: signing
+        env:
+          CERT: ${{ secrets.APPLE_CERTIFICATE }}
+        run: |
+          if [ -n "$CERT" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No APPLE_CERTIFICATE secret: shipping an unsigned build that Gatekeeper will block on download."
+          fi
+
+      - name: Import the Developer ID certificate
+        if: steps.signing.outputs.available == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+              -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          # Without this, codesign blocks on a keychain prompt no one can answer.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+              -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" \
+              | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
+          if [ -z "$IDENTITY" ]; then
+            echo "the imported certificate holds no Developer ID Application identity" >&2
+            exit 1
+          fi
+          echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build and package
+        env:
+          # Present only for a notarised release; the script skips notarisation
+          # when they are empty.
+          NOTARY_APPLE_ID: ${{ secrets.APPLE_ID }}
+          NOTARY_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          UNIVERSAL=1 ./Scripts/build-app.sh
+          ./Scripts/package-dmg.sh
+
+      - name: Write the release notes
+        env:
+          SIGNED: ${{ steps.signing.outputs.available }}
+        run: |
+          {
+            echo "### Install"
+            echo
+            echo "Download \`AmIShouting-${VERSION}.dmg\`, open it, and drag **Am I Shouting?** to Applications."
+            echo
+            if [ "$SIGNED" != "true" ]; then
+              echo "This build is **not signed with an Apple Developer ID**, so macOS blocks it the first time:"
+              echo "open it once, then go to **System Settings → Privacy & Security**, find the message about"
+              echo "\"Am I Shouting?\" near the bottom and choose **Open Anyway**. This is only needed once."
+              echo
+            fi
+            echo "The app asks for microphone access on first launch. Audio is never recorded or sent anywhere."
+          } > "$RUNNER_TEMP/notes.md"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Am I Shouting? ${VERSION}" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --generate-notes \
+            "dist/AmIShouting-${VERSION}.dmg" \
+            "dist/AmIShouting-${VERSION}.dmg.sha256"
