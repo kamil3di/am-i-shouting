@@ -1,116 +1,83 @@
 # Am I Shouting?
 
-A small level meter that lives in the macOS menu bar and answers exactly that
-question. It continuously learns the room's noise floor, compares your voice
-against it, and tells you by colour whether you are shouting.
+A small level meter in the macOS menu bar. It learns the room's noise floor,
+compares your voice against it, and tells you by colour whether you are
+shouting.
 
 ```
 [▬▬▬▬▬▭|▭]   green = normal · yellow = loud · red = shouting
 ```
 
-No Dock icon (`LSUIElement`), no window. Audio is never recorded or sent
-anywhere; it exists only as a running level calculation in memory.
-
-The UI ships in **English** and can be switched to **Türkçe** from the popover
-at any time — the choice is remembered.
-
-## How it works
-
-A single microphone cannot physically separate "the room" from "your voice" —
-it hears both at once. So this app measures something it actually can:
-**how many dB above the room's noise floor you are.**
-
-1. **Noise floor** — the 10th percentile of the last 12 seconds. The gaps
-   between words reveal what the room itself sounds like, and the floor is
-   learned from those. It may only rise at ~3 dB/s, so even sustained shouting
-   never becomes "ambient"; it falls quickly (20 dB/s), because a room going
-   quiet is real and immediate.
-2. **Your current level** — the 80th percentile of the last 0.8 seconds. Not the
-   peak: a single door slam or keyboard click occupies too few slices to reach
-   the 80th percentile, while real speech reaches it easily.
-3. **Excess** = level − floor. The thresholds sit on top of that excess:
-   normal (default +22 dB) → loud (+5 dB) → shouting (+11 dB).
-4. **Hysteresis** — escalating is fast (0.15 s) and calming down is slow
-   (0.9 s), so the colour does not flicker between words.
-
-The result: a level that counts as shouting in a silent office is an ordinary
-speaking voice in a busy café. The bar moves with the room.
+No Dock icon, no window. Audio is never recorded or sent anywhere. The UI is in
+English and can be switched to Türkçe from the popover.
 
 ## Install
 
-Download the latest `.dmg` from the [releases page](https://github.com/kamil3di/am-i-shouting/releases/latest),
-open it, and drag **Am I Shouting?** to your Applications folder.
+Download the latest `.dmg` from the [releases page][releases], open it, and drag
+**Am I Shouting?** to Applications.
 
 > **First launch.** Releases are not signed with an Apple Developer ID yet, so
-> macOS refuses to open the app the first time and says it cannot verify the
-> developer. Try to open it once, then go to **System Settings → Privacy &
-> Security**, find the message about "Am I Shouting?" near the bottom, and
-> choose **Open Anyway**. You only need to do this once. Signing and
-> notarisation are already wired into the release pipeline; they switch on as
-> soon as a Developer ID certificate is available, and then this step
-> disappears.
+> macOS refuses to open the app and says it cannot verify the developer. Try to
+> open it once, then go to **System Settings → Privacy & Security**, find the
+> message about "Am I Shouting?" and choose **Open Anyway**. Once only.
 
-The app asks for microphone access on first launch.
+## Calibrate it first
 
-### From source
+Do this before anything else. The default thresholds are a guess: they know
+nothing about your microphone, your voice, or how far you sit from the laptop,
+and until you fix that the colours will be wrong for you.
 
-```bash
-make app && open "dist/Am I Shouting.app"
-```
+1. Allow microphone access when asked.
+2. Click the bar in the menu bar, press **Measure my normal voice**.
+3. Speak at your normal level for five seconds.
 
-`make app` compiles, assembles `dist/Am I Shouting.app` and signs it ad-hoc,
-which is enough for local use. The signature uses a stable identifier, so macOS
-remembers the microphone grant across rebuilds.
+The thresholds are rebuilt around your own voice and saved. It takes five
+seconds and it is the difference between a meter that works and one that cries
+wolf. Do it again if you switch microphone or move somewhere very different.
 
-`make universal` builds for Intel and Apple Silicon; `make dmg` produces the
-packaged disk image a release ships.
+The rest of the panel: live dB readings, a **Sensitivity** trim (−8…+8 dB,
+right flags you earlier), the language switch, and **Pause**.
 
-## Using it
+## How it works
 
-Click the bar in the menu bar to open the panel:
+A single microphone cannot separate "the room" from "your voice" — it hears both
+at once. So the app measures what it actually can: **how many dB above the
+room's noise floor you are.** A level that counts as shouting in a silent office
+is an ordinary speaking voice in a busy café.
 
-- **Ambient noise / your level / above ambient / shout threshold** — live dB
-  readings.
-- **Measure my normal voice** — speak normally for 5 seconds; the thresholds are
-  rebuilt around your own voice and saved. This calibration is the only thing
-  that knows your microphone, your voice and how far you sit from it, so it is
-  by far the most useful setting.
-- **Sensitivity** — −8…+8 dB. Sliding right lowers the thresholds (flags you
-  earlier).
-- **Language** — English / Türkçe, applied immediately.
-- **Pause** — releases the microphone.
-
-Settings are stored in `UserDefaults`.
-
-## Diagnostic mode
-
-To see what is being measured without watching the menu bar:
-
-```bash
-"./dist/Am I Shouting.app/Contents/MacOS/AmIShouting" --probe 15
-```
-
-It prints a few lines per second of input / floor / voice / excess / state. This
-is the quickest way to tune thresholds for your own room, or to answer "why did
-it just go red?".
+The floor is the 10th percentile of the last 12 seconds, because the gaps
+between words are what the room sounds like. It may only rise at ~3 dB/s, so
+sustained shouting never quietly becomes "ambient". Your own level is the 80th
+percentile of the last 0.8 seconds, so a door slam is too brief to raise the
+alarm on its own. A verdict escalates in 0.15 s but calms down over 0.9 s, so
+the colour does not flicker between words.
 
 ## Known limits
 
-- **AirPods and similar Bluetooth headsets** apply their own noise and echo
-  cancellation. Audio the Mac plays itself largely never reaches the microphone
-  (so testing by playing a sound through the speakers does not work), and the
-  noise floor looks quieter than the real room. Calibration compensates.
-- **The first ~1.5 seconds** produce no verdict; the state stays "quiet" until
-  the floor has been learned. Changing the input device (plugging in a headset)
-  rebuilds the tap and restarts that learning.
-- **A silent input is rejected rather than believed.** A fresh or muted stream
-  delivers exact zeros (−100 dBFS); treating that as "a very quiet room" would
-  peg the floor at digital silence and make the next ordinary word look like a
-  40 dB scream. The panel says "No signal" instead.
-- **There is no speech recognition.** Any sustained sound loud enough counts as
-  speech: a radiator, an air conditioner, the desk next to you.
-- **dBFS is not an absolute measure of loudness.** It depends on microphone
-  gain, which is exactly why everything here is measured *relative* to the room.
+- **AirPods and similar headsets** apply their own noise and echo cancellation,
+  so the noise floor reads quieter than the real room. Calibration compensates.
+- **No speech recognition.** Any sustained sound loud enough counts as speech: a
+  radiator, an air conditioner, the desk next to you.
+- **The first ~1.5 seconds** produce no verdict, and changing input device
+  restarts that learning.
+
+To see the numbers behind a verdict:
+
+```bash
+"/Applications/Am I Shouting.app/Contents/MacOS/AmIShouting" --probe 15
+```
+
+## Development
+
+```bash
+swift build && swift test    # 46 tests
+make run                     # build, assemble, launch
+make dmg                     # what a release ships
+```
+
+The detector takes its time from `LevelSample.time` rather than the wall clock,
+so the tests drive it with a virtual clock and check the floor slew limits,
+hysteresis and window behaviour deterministically.
 
 ## Releasing
 
@@ -118,52 +85,16 @@ it just go red?".
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-The [release workflow](.github/workflows/release.yml) runs the tests, builds a
-universal binary, stamps the version from the tag, packages a DMG with a
-SHA-256 checksum, and publishes a GitHub release.
-
-To make releases install without the Gatekeeper detour, add these repository
-secrets — the same pipeline then signs and notarises with no workflow change:
-
-| Secret | What it is |
-| --- | --- |
-| `APPLE_CERTIFICATE` | Developer ID Application certificate, exported as `.p12` and base64-encoded |
-| `APPLE_CERTIFICATE_PASSWORD` | the password used when exporting that `.p12` |
-| `APPLE_ID` | Apple ID of the developer account |
-| `APPLE_APP_PASSWORD` | an app-specific password for that Apple ID |
-| `APPLE_TEAM_ID` | the ten-character team identifier |
-
-All of these require a paid Apple Developer Program membership. A free Apple ID
-cannot issue a Developer ID certificate, and without one there is no way to
-avoid the first-launch warning.
-
-## Development
-
-```bash
-swift build          # compile
-swift test           # 46 tests
-make run             # build, assemble, launch
-make clean
-```
-
-The detector takes its time from `LevelSample.time` rather than the wall clock,
-so the tests drive it with a virtual clock at 20 frames per second and verify
-the floor slew limits, hysteresis and window behaviour deterministically. The
-menu bar image is verified by reading pixels back out of it, and the popover is
-laid out in both languages as a smoke test.
-
-| File | Responsibility |
-| --- | --- |
-| `AudioMonitor.swift` | `AVAudioEngine` tap; slices buffers into 40 ms chunks and reports RMS / peak dBFS |
-| `ShoutDetector.swift` | Noise floor, excess, thresholds, hysteresis, calibration |
-| `MeterModel.swift` | Audio + detector + persisted settings, as an `ObservableObject` |
-| `StatusItemController.swift` | `NSStatusItem`, the live bar, the popover |
-| `LevelBarImage.swift` | Drawing of the menu bar image |
-| `DetailView.swift` | SwiftUI panel |
-| `Localization.swift` | The app name and every user-facing string, in both languages |
-| `Probe.swift` | `--probe` diagnostic mode |
-
+The [release workflow](.github/workflows/release.yml) tests, builds a universal
+binary, packages a DMG with a SHA-256 checksum and publishes a GitHub release.
+It signs and notarises instead — no workflow change — once these repository
+secrets exist: `APPLE_CERTIFICATE` (a Developer ID Application `.p12`,
+base64-encoded), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_PASSWORD`
+(app-specific), `APPLE_TEAM_ID`. All of them need a paid Apple Developer Program
+membership; without one there is no way to avoid the first-launch warning.
 
 ## License
 
 [MIT](LICENSE)
+
+[releases]: https://github.com/kamil3di/am-i-shouting/releases/latest
