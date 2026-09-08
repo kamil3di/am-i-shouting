@@ -14,7 +14,7 @@ jobs:
   release:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # The bundle's build number is the commit count, so the full history
           # has to be here.
